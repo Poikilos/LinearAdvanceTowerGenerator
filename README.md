@@ -1,0 +1,2 @@
+# LinearAdvanceTowerGenerator
+Did you ever wonder why the corners of your models are either bulged or rounded off? Generate a hollow square tower and calibrate linear advance the old-fashioned way. This method is as accurate as your ability to count layers and look at how good the layers are, so it is up to 100% accurate. The line by line (flat) test didn't work for me with flexible filament because the perception of what was happening seemed to have other factors, and the result from that left cut corners on real models.
