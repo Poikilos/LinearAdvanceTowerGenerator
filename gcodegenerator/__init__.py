@@ -2,6 +2,9 @@
 from __future__ import print_function
 import sys
 import os
+import decimal
+from decimal import Decimal
+
 
 def echo0(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
@@ -41,9 +44,15 @@ except ImportError as ex:
     echo0("Error: This program requires the gcodefollower module from TemperatureTowerProcessor.")
     raise ex
 
+from gcodefollower import (
+    get_cmd_meta,
+    cmd_meta_dict,
+    changed_cmd,
+)
+
 options = {
     'start': 0.00,  # LIN_ADVANCE_K on first layer
-    'end': 0.4,  # LIN_ADVANCE_K on last layer
+    'end': 12,  # LIN_ADVANCE_K on last layer
     'delta': .4,  # change LIN_ADVANCE_K per layer
     'raft_height': .94,
     'raft_air_gap': .3,
@@ -57,7 +66,7 @@ options = {
     'material': "TPU",
     'before_layer': (
         ";MESH:square 40x40, .48 border (.4 x 1.2overextrusion) 2layers.stl\n"
-        "G0 F9000 X27.781 Y32.781 Z{z:.3f}\n"
+        "G0 F9000 X27.781 Y32.781 Z{z:.5f}\n"
         ";TYPE:WALL-OUTER\n"
     ),
 }
@@ -75,7 +84,55 @@ chunk_order = [
 ]
 
 
+last_raft_E = 0
+
+
+def get_e(gcode):
+    '''
+    Get the last E value in the gcode, otherwise None if there is no
+    extrusion command.
+
+    Sequential arguments:
+    gcode -- The command string or list of commands.
+    '''
+    E = None
+    if isinstance(gcode, str):
+        gcode = [gcode]
+    elif (not isinstance(gcode, list)) and (not isinstance(gcode, tuple)):
+        raise ValueError("gcode must be a string or list/tuple of strings.")
+    for rawL in gcode:
+        line = rawL.strip()
+        if line.startswith(";"):
+            continue
+        if len(line) == 0:
+            continue
+        meta = get_cmd_meta(line)
+        '''
+        if meta is None:
+            # blank line
+            continue
+        '''
+        if len(meta) < 1:
+            continue
+        if meta[0] != ["G", "1"]:
+            continue
+        for pair in meta:
+            if pair[0] == "E":
+                E_str = pair[1]
+                E = Decimal(E_str)
+    return E
+
+
+def save_starting_e(gcode):
+    global last_raft_E
+    E = get_e(gcode)
+    if E is None:
+        return
+    last_raft_E = E
+
+
 def main():
+    done_tower = False
     out_path = ("tower20x20 1layer+raft lh=.2+raft linewidth=.48"
                 " (LA K={}to{}).gcode"
                 "".format(options['start'], options['end']))
@@ -114,12 +171,14 @@ def main():
                 # ^ ok since incremented before any extrusion below
                 K = options['start'] - options['delta']
                 layer_no = -1
+                before_layer_E = last_raft_E
+                abs_E = before_layer_E
                 while K < options['end']:
                     layer_no += 1
                     outs.write(";LAYER:{}\n".format(layer_no))
                     z += options['layer_height']
                     K += options['delta']
-                    this_K_line = "M900 K{:.2f}".format(K)
+                    this_K_line = "M900 K{:.5f}".format(K)
                     if not this_K_line.endswith("\n"):
                         this_K_line += "\n"
                     outs.write(this_K_line)
@@ -128,16 +187,28 @@ def main():
                         before_this += "\n"
                     outs.write(before_this)
                     for rawL in tower_layer_gcode_lines:
-                        line = rawL
+                        line = rawL.strip()
+                        if not line.startswith(";"):
+                            meta = get_cmd_meta(line)
+                            meta_dict = cmd_meta_dict(meta)
+                            E = Decimal(meta_dict.get('E'))
+                            if E is not None:
+                                relative_E = E - last_raft_E
+                                abs_E = before_layer_E + relative_E
+                                line = changed_cmd(line, 'E', abs_E)
                         if not line.endswith("\n"):
                             line += "\n"
                         outs.write(line)
+                    before_layer_E = abs_E
                     # Write square.gcode (or other) multiple times then
                     #   continue to the next chunk.
+                done_tower = True
                 continue
             with open(in_path, 'r') as ins:
                 for rawL in ins:
                     line = rawL
+                    if not done_tower:
+                        save_starting_e(line)
                     if not line.endswith("\n"):
                         line += "\n"
                     outs.write(line)
@@ -147,9 +218,11 @@ def main():
                 if not after.endswith("\n"):
                     after += "\n"
                 outs.write(after)
+                if not done_tower:
+                    save_starting_e(after.split("\n"))
         h = z + options['layer_height']
         print("height={}".format(h))
-        sys.stderr.write('wrote "{}"\n'.format(out_path))
+        sys.stderr.write('wrote "{}"\n'.format(os.path.realpath(out_path)))
         return 0
     sys.stderr.write("failed\n")
     return 1
