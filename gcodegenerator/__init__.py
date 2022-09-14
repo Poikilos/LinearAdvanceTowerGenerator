@@ -48,11 +48,12 @@ from gcodefollower import (
     get_cmd_meta,
     cmd_meta_dict,
     changed_cmd,
+    round_nearest_d,
 )
 
 options = {
     'start': 0.00,  # LIN_ADVANCE_K on first layer
-    'end': 12,  # LIN_ADVANCE_K on last layer
+    'end': .4,  # LIN_ADVANCE_K on last layer
     'delta': .4,  # change LIN_ADVANCE_K per layer
     'raft_height': .94,
     'raft_air_gap': .3,
@@ -66,9 +67,10 @@ options = {
     'material': "TPU",
     'before_layer': (
         ";MESH:square 40x40, .48 border (.4 x 1.2overextrusion) 2layers.stl\n"
-        "G0 F9000 X27.781 Y32.781 Z{z:.5f}\n"
+        "G0 F9000 X27.781 Y32.781 Z{z}\n"  # {z} changed using precision later
         ";TYPE:WALL-OUTER\n"
     ),
+    'precision': 5,
 }
 
 chunk_order = [
@@ -128,7 +130,7 @@ def save_starting_e(gcode):
     E = get_e(gcode)
     if E is None:
         return
-    last_raft_E = E
+    last_raft_E = Decimal(E)
 
 
 def main():
@@ -143,6 +145,12 @@ def main():
         echo0('Error: There is no material profile "{}"'
               ''.format(material_path))
         return 2
+
+    precision = options['precision']
+    before_layer_fmt = options['before_layer'].replace(
+        "{z}",
+        "{z:."+str(precision)+"f}"
+    )
     with open(out_path, 'w') as outs:
         for chunk in chunk_order:
             generic_key = chunk
@@ -178,7 +186,8 @@ def main():
                     outs.write(";LAYER:{}\n".format(layer_no))
                     z += options['layer_height']
                     K += options['delta']
-                    this_K_line = "M900 K{:.5f}".format(K)
+                    K_fmt = "M900 K{:." + str(precision) + "f}"
+                    this_K_line = K_fmt.format(K)
                     if not this_K_line.endswith("\n"):
                         this_K_line += "\n"
                     outs.write(this_K_line)
@@ -195,7 +204,7 @@ def main():
                             if E is not None:
                                 relative_E = E - last_raft_E
                                 abs_E = before_layer_E + relative_E
-                                line = changed_cmd(line, 'E', abs_E)
+                                line = changed_cmd(line, 'E', abs_E, precision=precision)
                         if not line.endswith("\n"):
                             line += "\n"
                         outs.write(line)
