@@ -54,7 +54,7 @@ from gcodefollower import (
 options = {
     'start': 0.00,  # LIN_ADVANCE_K on first layer
     'end': .4,  # LIN_ADVANCE_K on last layer
-    'delta': .4,  # change LIN_ADVANCE_K per layer
+    'step': .4,  # change LIN_ADVANCE_K per layer
     'raft_height': .94,
     'raft_air_gap': .3,
     # ^ Cura default=.3 but g-code editing cancels that for accurate measurement
@@ -177,7 +177,7 @@ def main():
                 z = options['raft_height']
                 z += options['raft_air_gap']
                 # ^ ok since incremented before any extrusion below
-                K = options['start'] - options['delta']
+                K = options['start'] - options['step']
                 layer_no = -1
                 before_layer_E = last_raft_E
                 abs_E = before_layer_E
@@ -185,7 +185,7 @@ def main():
                     layer_no += 1
                     outs.write(";LAYER:{}\n".format(layer_no))
                     z += options['layer_height']
-                    K += options['delta']
+                    K += options['step']
                     K_fmt = "M900 K{:." + str(precision) + "f}"
                     this_K_line = K_fmt.format(K)
                     if not this_K_line.endswith("\n"):
