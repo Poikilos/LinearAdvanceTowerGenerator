@@ -22,3 +22,7 @@ There is totally different tower using the same technique as LinearAdvanceTowerG
     - `M900 K...` but replace "..." with the K value you found earlier.
     - If you get an invalid command error, you have to compile/get Marlin firmware that has LIN_ADVANCE enabled and re-flash your 3D printer (unplug the LCD first if using JGAURORA A3S) then redo the step above. Potentially, you can set LIN_ADVANCE_K in the Configuration.h file. Otherwise, continue below.
     - `M500` to save settings to firmware.
+
+Example results:
+- JGAURORA A3S with upgraded 1.9mm ID bowden tube (680mm long) by TECBOSS
+  - ATARAXIA ART Flexible PLA+: `M900 K4.32`
