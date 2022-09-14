@@ -129,5 +129,4 @@ dmypy.json
 .pyre/
 /*.gcode
 *.blend1
-/gcodegenerator/data/square 40x40, .48 border (.4 x 1.2overextrusion) 2layers.stl
 /projects/square20x20 1layer+raft lh=.2+raft linewidth=.48.gcode
