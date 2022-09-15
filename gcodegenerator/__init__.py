@@ -52,22 +52,22 @@ from gcodefollower import (
 )
 
 options = {
-    'start': 0.00,  # LIN_ADVANCE_K on first layer
-    'end': .4,  # LIN_ADVANCE_K on last layer
-    'step': .4,  # change LIN_ADVANCE_K per layer
-    'raft_height': .94,
-    'raft_air_gap': .3,
-    # ^ Cura default=.3 but g-code editing cancels that for accurate measurement
-    'layer_height': .2,
+    'first': Decimal(0.00),  # LIN_ADVANCE_K on first layer
+    'last': Decimal(round_nearest_d(1.9, 2)),  # LIN_ADVANCE_K on last layer (.4 to compare with 2-layer stl)
+    'step': Decimal(.1),  # change LIN_ADVANCE_K per layer
+    'raft_height': Decimal(.94),
+    'raft_air_gap': Decimal(.0), # ^ Cura default=.3 but editing cancels that for accurate measurement
+    'layer_height': Decimal(.2),
     'before_start': "; -- START GCODE --",
     'after_start': "; -- end of START GCODE --",
     'before_end': "; -- END GCODE --",
     'after_end': "; -- end of END GCODE --",
     'tower_shape': "square",
-    'material': "TPU",
+    'material': "PLA",  # TPU
     'before_layer': (
-        ";MESH:square 40x40, .48 border (.4 x 1.2overextrusion) 2layers.stl\n"
+        ";MESH:square 40x40, .48 border (.4 x 1.2overextrusion).stl\n"
         "G0 F9000 X27.781 Y32.781 Z{z}\n"  # {z} changed using precision later
+        # ^ normally "G0 F5400 X27.966 Y28.76 Z{z}" for PLA
         ";TYPE:WALL-OUTER\n"
     ),
     'precision': 5,
@@ -133,19 +133,16 @@ def save_starting_e(gcode):
     last_raft_E = Decimal(E)
 
 
-def main():
+def save_tower(out_path, options):
     done_tower = False
-    out_path = ("tower20x20 1layer+raft lh=.2+raft linewidth=.48"
-                " (LA K={}to{}).gcode"
-                "".format(options['start'], options['end']))
     tower_layer_gcode_lines = None
     z = 0
     material_path = os.path.join(DATA_PATH, options.get('material'))
+    print('material_path="{}"'.format(material_path))
     if not os.path.isdir(material_path):
         echo0('Error: There is no material profile "{}"'
               ''.format(material_path))
         return 2
-
     precision = options['precision']
     before_layer_fmt = options['before_layer'].replace(
         "{z}",
@@ -177,11 +174,11 @@ def main():
                 z = options['raft_height']
                 z += options['raft_air_gap']
                 # ^ ok since incremented before any extrusion below
-                K = options['start'] - options['step']
+                K = options['first'] - options['step']
                 layer_no = -1
                 before_layer_E = last_raft_E
                 abs_E = before_layer_E
-                while K < options['end']:
+                while K < options['last']:
                     layer_no += 1
                     outs.write(";LAYER:{}\n".format(layer_no))
                     z += options['layer_height']
@@ -191,7 +188,7 @@ def main():
                     if not this_K_line.endswith("\n"):
                         this_K_line += "\n"
                     outs.write(this_K_line)
-                    before_this = options['before_layer'].format(z=z)
+                    before_this = options['before_layer'].format(z=round_nearest_d(z, precision))
                     if not before_this.endswith("\n"):
                         before_this += "\n"
                     outs.write(before_this)
@@ -235,6 +232,13 @@ def main():
         return 0
     sys.stderr.write("failed\n")
     return 1
+
+
+def main():
+    out_path = ("tower20x20 +raft lh=.2+raft linewidth=.48"
+                " (LA K={}to{}).gcode"
+                "".format(options['first'], options['last']))
+    return save_tower(out_path, options)
 
 
 if __name__ == "__main__":
