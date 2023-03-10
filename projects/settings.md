@@ -5,8 +5,9 @@ To generate the gcode included in the data directory of the gcodegenerator modul
 
 
 ## Position of square20x20 model:
-  - X: -49.815
-  - Y: 54.021
+  - X: -50 (formerly -49.815)
+  - Y: 50 (formerly 54.021)
+
 
 ## Material-specific profiles
 ### PLA folder
@@ -14,7 +15,7 @@ To generate the gcode included in the data directory of the gcodegenerator modul
 "Normal" except:
 - layer height: .2
 - retraction: None
-- Extra Raft Margin 5 (default was 8)
+- Extra Raft Margin 3 (formerly 5; default was 8)
 
 ### TPU folder
 - Profile: Siepie Small-Minis profile except:
